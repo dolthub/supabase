@@ -1,0 +1,48 @@
+# Local Doltgres trial:
+#   docker compose -f docker-compose.yml -f docker-compose.doltgres.yml up --build -d
+# Build Studio first from the repository root with pnpm build:studio:docker.
+
+services:
+  studio:
+    image: supabase-studio:local
+    pull_policy: never
+
+  db:
+    image: supabase-doltgres:local
+    build:
+      context: ./volumes/doltgres
+    # Keep the first bootstrap failure visible instead of restarting repeatedly.
+    restart: 'no'
+    command: []
+    environment: !override
+      DOLTGRES_USER: supabase_admin
+      DOLTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DOLTGRES_DB: postgres
+      POSTGRES_USER: supabase_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_EXP: ${JWT_EXPIRY}
+    volumes: !override
+      - doltgres-data:/var/lib/doltgres
+      - ./volumes/doltgres/config.yaml:/etc/doltgres/servercfg.d/config.yaml:ro,z
+      - ./volumes/db/webhooks.sql:/opt/supabase/bootstrap/init-scripts/98-webhooks.sql:ro,z
+      - ./volumes/db/roles.sql:/opt/supabase/bootstrap/init-scripts/99-roles.sql:ro,z
+      - ./volumes/db/jwt.sql:/opt/supabase/bootstrap/init-scripts/99-jwt.sql:ro,z
+      - ./volumes/db/_supabase.sql:/opt/supabase/bootstrap/migrations/97-_supabase.sql:ro,z
+      - ./volumes/db/realtime.sql:/opt/supabase/bootstrap/migrations/99-realtime.sql:ro,z
+      - ./volumes/db/logs.sql:/opt/supabase/bootstrap/migrations/99-logs.sql:ro,z
+      - ./volumes/db/pooler.sql:/opt/supabase/bootstrap/migrations/99-pooler.sql:ro,z
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test -f /var/lib/doltgres/.supabase_bootstrap_complete && test -f /var/lib/doltgres/.init_completed && psql -U supabase_admin -Atqc 'SELECT 1' >/dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  doltgres-data:
