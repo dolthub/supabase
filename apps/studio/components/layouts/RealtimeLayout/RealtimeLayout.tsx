@@ -2,6 +2,7 @@ import { Realtime } from 'icons'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import type { PropsWithChildren } from 'react'
+import { Admonition } from 'ui-patterns/Admonition'
 
 import { ProjectLayout } from '../ProjectLayout'
 import { generateRealtimeMenu } from './RealtimeMenu.utils'
@@ -11,6 +12,7 @@ import { ProductMenuShortcuts } from '@/components/ui/ProductMenu/ProductMenuSho
 import { useHighAvailability } from '@/hooks/misc/useHighAvailability'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { withAuth } from '@/hooks/misc/withAuth'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 
 /**
  * Menu-only component for the Realtime section. Used by the desktop sidebar and by the
@@ -35,6 +37,16 @@ export const RealtimeLayout = ({ title, children }: PropsWithChildren<RealtimeLa
   const router = useRouter()
   const page = router.pathname.split('/')[4]
   const menu = generateRealtimeMenu(project)
+
+  if (!IS_REPLICATION_ENABLED) {
+    return (
+      <Admonition
+        type="default"
+        title="Realtime disabled"
+        description="Realtime is disabled for this deployment."
+      />
+    )
+  }
 
   if (isHighAvailability) {
     return (

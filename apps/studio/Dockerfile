@@ -53,6 +53,8 @@ RUN pnpm install --frozen-lockfile
 
 # dev contains dependencies and source code not compiled
 FROM deps AS dev
+ARG NEXT_PUBLIC_DISABLED_FEATURES=""
+ENV NEXT_PUBLIC_DISABLED_FEATURES=${NEXT_PUBLIC_DISABLED_FEATURES}
 COPY --from=turbo /app/out/full ./
 ENTRYPOINT ["docker-entrypoint.sh"]
 EXPOSE 8082

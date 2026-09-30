@@ -1,7 +1,7 @@
 # Local Doltgres trial
 
 This override runs the existing Supabase services against Doltgres with debug
-logging. It assumes PostgreSQL compatibility, including the extensions used by
+logging, with Realtime and logical replication disabled. It assumes PostgreSQL compatibility, including the extensions used by
 the pinned Supabase bootstrap SQL. Bootstrap stops at the first SQL error.
 
 The adapter image copies SQL from `supabase/postgres:17.6.1.136` and runs it against
@@ -9,12 +9,6 @@ The adapter image copies SQL from `supabase/postgres:17.6.1.136` and runs it aga
 `postgres` and `_supabase` database names. No PostgreSQL server runs in the adapter.
 
 ## Build and start
-
-From the repository root, build the local Studio image:
-
-```sh
-pnpm build:studio:docker
-```
 
 From `docker/`, create `.env` if it does not already exist:
 
@@ -32,6 +26,21 @@ docker compose -f docker-compose.yml -f docker-compose.doltgres.yml logs -f db
 
 Studio is available through the gateway at `http://localhost:8000`, using
 `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` from `.env`.
+
+The override builds Studio with
+`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication`. This disables
+publication queries and mutations, per-table Realtime controls, and Realtime and
+replication pages. The adapter removes the initial `CREATE PUBLICATION` statement
+from the copied SQL and does not initialize `_realtime`. The Realtime service is
+excluded from normal startup; Envoy returns HTTP 503 for Realtime endpoints.
+Do not enable the `realtime-disabled` Compose profile.
+
+Postgres Changes, database Broadcast, client Broadcast, and Presence are
+unavailable. Other Doltgres compatibility errors still stop bootstrap.
+
+For Studio development outside Docker, set
+`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication` before starting
+the dev server. The default PostgreSQL stack keeps replication enabled.
 
 The base stack's fixed container names mean another self-hosted Compose stack
 using those names must be stopped before starting this one. Supabase CLI stacks
@@ -74,5 +83,7 @@ create publication supabase_realtime;
 ```
 
 Doltgres reported `syntax error: unimplemented: this syntax`. The database stayed
-unhealthy. The adapter now uses 1.3.3; start with a fresh trial volume to check its
-bootstrap behavior. The bootstrap runner does not skip failing statements.
+unhealthy. The adapter now uses 1.3.3 and removes this statement during the image
+build. A fresh trial passed that point and stopped at the grant of
+`pg_read_all_data`, which is absent in the released image. The bootstrap runner
+still stops at any remaining SQL error.

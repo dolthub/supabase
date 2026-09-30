@@ -7,9 +7,15 @@ DASHBOARD_BASIC_AUTH="${DASHBOARD_USERNAME}:{SHA}${PASSWORD_HASH}"
 
 echo "Generating Envoy configuration..."
 
+case "${REALTIME_ENABLED:-true}" in
+  false) REALTIME_ENABLED=false ;;
+  *) REALTIME_ENABLED=true ;;
+esac
+
 # Process the lds.yaml template with environment variables using sed
 # Using | as delimiter since JWT tokens contain /
 sed -e "s|\${ANON_KEY}|${ANON_KEY}|g" \
+    -e "s|\${REALTIME_ENABLED}|${REALTIME_ENABLED}|g" \
     -e "s|\${ANON_KEY_ASYMMETRIC}|${ANON_KEY_ASYMMETRIC}|g" \
     -e "s|\${SERVICE_ROLE_KEY}|${SERVICE_ROLE_KEY}|g" \
     -e "s|\${SERVICE_ROLE_KEY_ASYMMETRIC}|${SERVICE_ROLE_KEY_ASYMMETRIC}|g" \

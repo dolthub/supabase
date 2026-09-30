@@ -1,6 +1,7 @@
 import { isFeatureEnabled, type Feature } from 'common'
 
 import { useEnabledFeaturesOverrideQuery } from '@/data/misc/enabled-features-override-query'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 import { useProfile } from '@/lib/profile'
 
 function useIsFeatureEnabled<T extends Feature[]>(
@@ -12,6 +13,7 @@ function useIsFeatureEnabled<T extends Feature | Feature[]>(features: T) {
   const { data: override } = useEnabledFeaturesOverrideQuery()
 
   const disabledFeatures = [
+    ...(!IS_REPLICATION_ENABLED ? ['realtime:all', 'database:replication'] : []),
     ...(profile?.disabled_features ?? []),
     ...(override?.disabled_features ?? []),
   ] as Feature[]

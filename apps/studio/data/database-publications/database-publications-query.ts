@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { executeSql } from '../sql/execute-sql-mutation'
 import { databasePublicationsKeys } from './keys'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomQueryOptions } from '@/types'
 
 export type DatabasePublicationsVariables = {
@@ -14,7 +15,8 @@ export type DatabasePublicationsVariables = {
 export async function getDatabasePublications(
   { projectRef, connectionString }: DatabasePublicationsVariables,
   signal?: AbortSignal
-) {
+): Promise<PGPublication[]> {
+  if (!IS_REPLICATION_ENABLED) return []
   if (!projectRef) throw new Error('projectRef is required')
 
   const { sql } = pgMeta.publications.list()

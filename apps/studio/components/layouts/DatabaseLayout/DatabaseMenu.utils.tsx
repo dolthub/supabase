@@ -10,6 +10,7 @@ import { useProjectAddonsQuery } from '@/data/subscriptions/project-addons-query
 import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { IS_PLATFORM } from '@/lib/constants'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 import { SHORTCUT_IDS } from '@/state/shortcuts/registry'
 
 export const useGenerateDatabaseMenu = (): ProductMenuGroup[] => {
@@ -76,12 +77,16 @@ export const useGenerateDatabaseMenu = (): ProductMenuGroup[] => {
           url: getDatabaseURL('indexes'),
           shortcutId: SHORTCUT_IDS.NAV_DATABASE_INDEXES,
         },
-        {
-          name: 'Publications',
-          key: 'publications',
-          url: getDatabaseURL('publications'),
-          shortcutId: SHORTCUT_IDS.NAV_DATABASE_PUBLICATIONS,
-        },
+        ...(IS_REPLICATION_ENABLED
+          ? [
+              {
+                name: 'Publications',
+                key: 'publications',
+                url: getDatabaseURL('publications'),
+                shortcutId: SHORTCUT_IDS.NAV_DATABASE_PUBLICATIONS,
+              },
+            ]
+          : []),
       ],
     },
     {

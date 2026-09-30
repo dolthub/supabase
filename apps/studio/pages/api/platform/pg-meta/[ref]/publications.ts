@@ -4,11 +4,17 @@ import { fetchGet } from '@/data/fetchers'
 import { constructHeaders } from '@/lib/api/apiHelpers'
 import { apiWrapper } from '@/lib/api/apiWrapper'
 import { PG_META_URL } from '@/lib/constants'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 
 export default (req: NextApiRequest, res: NextApiResponse) =>
   apiWrapper(req, res, handler, { withAuth: true })
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!IS_REPLICATION_ENABLED) {
+    return res.status(503).json({
+      error: { message: 'Publications and replication are disabled for this deployment.' },
+    })
+  }
   const { method } = req
 
   switch (method) {

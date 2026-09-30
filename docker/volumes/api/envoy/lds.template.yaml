@@ -638,6 +638,17 @@ resources:
                                       - any: true
 
               http_filters:
+                # Reject Realtime requests when the deployment disables replication.
+                - name: envoy.filters.http.lua
+                  typed_config:
+                    '@type': type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                    inline_code: |
+                      function envoy_on_request(handle)
+                        local path = handle:headers():get(":path") or ""
+                        if ${REALTIME_ENABLED} == false and (path:match("^/realtime/v1/") or path == "/realtime/v1") then
+                          handle:respond({[":status"] = "503", ["content-type"] = "application/json"}, '{"message":"Realtime is disabled for this deployment."}')
+                        end
+                      end
                 - name: envoy.filters.http.cors
                   typed_config:
                     '@type': >-

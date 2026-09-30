@@ -493,6 +493,7 @@ export default defineConfig(({ command, mode }) => {
   // NEXT_PUBLIC_* vars.
   for (const key of [
     'NEXT_PUBLIC_SENTRY_DSN',
+    'NEXT_PUBLIC_DISABLED_FEATURES',
     'NEXT_PUBLIC_SENTRY_ENVIRONMENT',
     'NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA',
   ]) {

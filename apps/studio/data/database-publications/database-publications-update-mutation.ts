@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { databasePublicationsKeys } from './keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertReplicationEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type DatabasePublicationUpdateVariables = {
@@ -27,6 +28,7 @@ export async function updateDatabasePublication({
   publish_delete,
   publish_truncate,
 }: DatabasePublicationUpdateVariables) {
+  assertReplicationEnabled()
   const { sql } = pgMeta.publications.update(id, {
     tables,
     publish_insert,

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { databasePublicationsKeys } from './keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertReplicationEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type DatabasePublicationCreateVariables = {
@@ -27,6 +28,7 @@ export async function createDatabasePublication({
   publish_delete = false,
   publish_truncate = false,
 }: DatabasePublicationCreateVariables) {
+  assertReplicationEnabled()
   const { sql } = pgMeta.publications.create({
     name,
     tables,

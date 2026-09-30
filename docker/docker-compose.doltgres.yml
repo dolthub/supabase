@@ -1,11 +1,23 @@
 # Local Doltgres trial:
 #   docker compose -f docker-compose.yml -f docker-compose.doltgres.yml up --build -d
-# Build Studio first from the repository root with pnpm build:studio:docker.
 
 services:
   studio:
     image: supabase-studio:local
     pull_policy: never
+    build:
+      context: ..
+      dockerfile: apps/studio/Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_DISABLED_FEATURES: realtime:all,database:replication
+
+  realtime:
+    profiles: [realtime-disabled]
+
+  api-gw:
+    environment:
+      REALTIME_ENABLED: 'false'
 
   db:
     image: supabase-doltgres:local
@@ -32,7 +44,6 @@ services:
       - ./volumes/db/roles.sql:/opt/supabase/bootstrap/init-scripts/99-roles.sql:ro,z
       - ./volumes/db/jwt.sql:/opt/supabase/bootstrap/init-scripts/99-jwt.sql:ro,z
       - ./volumes/db/_supabase.sql:/opt/supabase/bootstrap/migrations/97-_supabase.sql:ro,z
-      - ./volumes/db/realtime.sql:/opt/supabase/bootstrap/migrations/99-realtime.sql:ro,z
       - ./volumes/db/logs.sql:/opt/supabase/bootstrap/migrations/99-logs.sql:ro,z
       - ./volumes/db/pooler.sql:/opt/supabase/bootstrap/migrations/99-pooler.sql:ro,z
     healthcheck:

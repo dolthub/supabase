@@ -59,6 +59,7 @@ import { useConfirmOnClose } from '@/hooks/ui/useConfirmOnClose'
 import { useUrlState } from '@/hooks/ui/useUrlState'
 import { useVisibleKey } from '@/hooks/ui/useVisibleKey'
 import { type ApiPrivilegesByRole } from '@/lib/data-api-types'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 import { isObjectContainingKeys } from '@/lib/helpers'
 import type { SafePostgresTable } from '@/lib/postgres-types'
 import { useTrack } from '@/lib/telemetry/track'
@@ -464,6 +465,7 @@ export const SidePanelEditor = ({
   }
 
   const updateTableRealtime = async (table: RetrieveTableResult, enabled: boolean) => {
+    if (!IS_REPLICATION_ENABLED) return
     if (!project) return console.error('Project is required')
     const realtimePublication = publications?.find((pub) => pub.name === 'supabase_realtime')
 

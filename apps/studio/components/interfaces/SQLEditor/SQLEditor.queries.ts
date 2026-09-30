@@ -1,7 +1,8 @@
 import type { SQLTemplate } from './SQLEditor.types'
 import { DOCS_URL } from '@/lib/constants'
+import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
 
-export const SQL_TEMPLATES: SQLTemplate[] = [
+const templates: SQLTemplate[] = [
   {
     id: 1,
     type: 'template',
@@ -1634,3 +1635,7 @@ using (true);
 `.trim(),
   },
 ]
+
+export const SQL_TEMPLATES = IS_REPLICATION_ENABLED
+  ? templates
+  : templates.filter((template) => !/publication|pg_replication_slots/i.test(template.sql))
