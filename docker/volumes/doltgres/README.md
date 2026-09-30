@@ -53,6 +53,14 @@ image's init SQL as `postgres`, then migrations as `supabase_admin`, including t
 existing SQL mounted from `docker/volumes/db`. Both bootstrap completion and an
 authenticated query are required before database health succeeds.
 
+Before the copied SQL runs, `predefined-roles.sql` creates missing non-login roles
+for `pg_read_all_data`, `pg_monitor`, `pg_signal_backend`, and
+`pg_create_subscription`. Existing server-provided roles are preserved. These
+ordinary roles allow the bootstrap's membership grants to succeed; they do not
+implement PostgreSQL's built-in read-all, monitoring, backend signaling, or
+subscription privileges. Explicit object permissions are still required when
+using these compatibility roles.
+
 The `doltgres-data` named volume persists databases, authentication state, and
 initialization markers under `/var/lib/doltgres`. The override replaces the base
 database mounts; it does not use `volumes/db/data` or the Postgres key volume.
@@ -84,6 +92,6 @@ create publication supabase_realtime;
 
 Doltgres reported `syntax error: unimplemented: this syntax`. The database stayed
 unhealthy. The adapter now uses 1.3.3 and removes this statement during the image
-build. A fresh trial passed that point and stopped at the grant of
-`pg_read_all_data`, which is absent in the released image. The bootstrap runner
-still stops at any remaining SQL error.
+build. The released image also lacks predefined roles required by the copied SQL;
+the adapter creates compatibility roles before those grants run. The bootstrap
+runner still stops at any remaining SQL error.

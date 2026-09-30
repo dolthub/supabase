@@ -24,6 +24,9 @@ CREATE ROLE postgres SUPERUSER LOGIN PASSWORD :'pgpass';
 ALTER DATABASE postgres OWNER TO postgres;
 SQL
 
+bootstrap_step='creating compatibility roles'
+psql --no-psqlrc --no-password -v ON_ERROR_STOP=1 -U supabase_admin -f /opt/supabase/predefined-roles.sql
+
 # Match the original image's ordering and execution roles. The Compose mounts
 # add the existing self-hosted SQL to these directories before initialization.
 for bootstrap_file in "$bootstrap_dir"/init-scripts/*.sql; do
