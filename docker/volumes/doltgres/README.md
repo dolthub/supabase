@@ -17,6 +17,19 @@ Build or load `dolthub/doltgresql:main` into local Docker before building the
 adapter. The workarounds below were established against release 1.3.3 and remain
 in place while testing the local image's panic fix.
 
+The REST service uses the local `postgrest:doltgres` image, built from the patched
+PostgREST checkout. With Nix installed, build and load it from that checkout:
+
+```sh
+nix-build -A docker
+result/bin/postgrest-docker-load
+docker tag postgrest:latest postgrest:doltgres
+```
+
+The tested checkout is version 17 development; the standard Supabase stack uses
+PostgREST 14.17. The Docker image contains the current checkout, including its
+version changes. This override uses `pull_policy: never` for the local REST image.
+
 From `docker/`, create `.env` if it does not already exist:
 
 ```sh
@@ -375,6 +388,69 @@ workarounds applied. It gets past the three earlier errors but stops loading its
 schema cache at `function: '_pg_char_max_length' not found`, referring to
 `information_schema._pg_char_max_length`. Requests still return HTTP 503 with
 `PGRST002`, so CRUD and RPC remain unvalidated.
+
+The compatibility SQL also defines
+`information_schema._pg_char_max_length(oid, integer)` with PostgreSQL's length
+rules for `char`, `varchar`, `bit`, and `varbit`, returning NULL for unlimited
+lengths and unrelated types. This helper is IMMUTABLE and STRICT. Checks as
+`authenticator` passed for all four types, unlimited lengths, unrelated types,
+and NULL input.
+
+After applying this helper and restarting PostgREST, schema discovery passes the
+earlier character-length failure and stops at
+`function: '_pg_truetypid' not found` (`information_schema._pg_truetypid`).
+The API still returns HTTP 503 while the schema cache is unavailable.
+
+An SQL-only `_pg_truetypid` replacement was tested and rolled back. The PL/pgSQL
+function can be created, but PostgREST's `_pg_truetypid(a.*, t.*)` call fails while
+resolving its composite-row arguments, with `could not be found in any table in
+scope`. This reproduces on stock 1.3.3 and the tested local main image. A SQL-language
+definition using named composite fields also fails during creation with
+`table not found: t`. No `_pg_truetypid` helper is installed by this adapter.
+
+The patched PostgREST checkout changes its column discovery query to inline
+`CASE WHEN t.typtype = 'd' THEN t.typbasetype ELSE a.atttypid END` in place of the
+helper call. The neighboring `_pg_truetypmod` call also takes composite rows and
+is replaced with its equivalent expression,
+`CASE WHEN t.typtype = 'd' THEN t.typtypmod ELSE a.atttypmod END`.
+
+The patched checkout built successfully through Nix in a Docker builder container
+and was loaded as `postgrest:doltgres`. The inline expressions were compared
+against PostgreSQL's original helpers for bounded varchar, text, bit, and a domain
+over varchar; type IDs and modifiers matched for all four columns.
+
+The running `supabase-postgrest-trial` now uses this image and passes the composite
+helper blocker. Schema loading next fails with
+`function: 'pg_relation_is_updatable' not found`. Requests still return HTTP 503
+with `PGRST002`; no CRUD or RPC success has been established.
+
+The PostgREST fork also removes `pg_relation_is_updatable` calls from table
+discovery. Only ordinary and partitioned tables are marked insertable, updatable,
+and deletable; views and foreign tables are marked non-writable. This skips
+discovery of automatically updatable views and trigger-based view writes. The
+flags control advertised methods in OPTIONS and OpenAPI; this workaround does not
+enforce read-only access or replace database privileges. Ordinary table writes
+retain their existing metadata flags, but actual CRUD compatibility still needs
+runtime validation.
+
+The rebuilt `postgrest:doltgres` image passes the missing relation-capability
+function and next fails schema loading with
+`function: 'json_array_elements' not found`. The trial remains running at
+`127.0.0.1:13000`; it still returns HTTP 503 with `PGRST002`.
+
+The PostgREST fork bypasses view key-dependency discovery because neither
+`json_array_elements` nor `jsonb_array_elements` is available. It supplies an
+empty view-dependency list while retaining ordinary table relationship discovery.
+Views no longer inherit primary-key metadata or foreign-key relationships from
+their source tables, so inferred resource embedding involving views is unavailable.
+This change does not remove views from table discovery or disable their direct
+read endpoints; actual view reads still require Doltgres compatibility testing.
+
+The rebuilt image passes the JSON helper blocker and ordinary table relationship
+discovery, then fails the RPC function discovery query with
+`at or near "any": syntax error`. PostgREST exits with status 1, so the trial API
+port is no longer listening. The failing schema query was captured separately for
+investigation; CRUD and RPC remain unvalidated.
 
 ## Previous startup result (1.0.0)
 

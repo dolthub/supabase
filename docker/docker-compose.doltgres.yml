@@ -13,6 +13,8 @@ services:
         NEXT_PUBLIC_DISABLED_FEATURES: realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto,database:event_triggers
 
   rest:
+    image: postgrest:doltgres
+    pull_policy: never
     environment:
       # Skip catalog configuration and role-settings queries (#3493, #3494).
       PGRST_DB_CONFIG: 'false'
