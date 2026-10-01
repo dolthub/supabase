@@ -129,10 +129,55 @@ From the repository root, run the rewrite checks with:
 python3 docker/volumes/doltgres/test_default_privileges.py
 ```
 
-The schema-wide grant trial passed the initial public table, function, and
-sequence grants. Bootstrap then stopped at
-`ALTER USER supabase_admin SET search_path TO public, extensions`, with a syntax
-error near `SET`. Role configuration is the next compatibility blocker.
+## Role configuration workaround
+
+Doltgres 1.3.3 rejects `ALTER USER/ROLE ... SET`. The adapter removes the copied
+bootstrap's known role-setting statements during the image build and defines
+their final defaults in `config.yaml` under `user_session_vars`. Unknown
+role-setting statements fail the build instead of being silently discarded.
+Active mounted SQL contains no role-setting statements.
+
+| Role                      | Search path                         | Other defaults                                           |
+| ------------------------- | ----------------------------------- | -------------------------------------------------------- |
+| `postgres`                | `"$user", public, extensions`       |                                                          |
+| `supabase_admin`          | `"$user", public, auth, extensions` | `log_statement=none`                                     |
+| `supabase_auth_admin`     | `auth`                              | Idle transaction timeout: 60000 ms; `log_statement=none` |
+| `supabase_storage_admin`  | `storage`                           | `log_statement=none`                                     |
+| `anon`                    | Server default                      | Statement timeout: 3000 ms                               |
+| `authenticated`           | Server default                      | Statement timeout: 8000 ms                               |
+| `authenticator`           | Server default                      | Statement and lock timeouts: 8000 ms                     |
+| `supabase_read_only_user` | Server default                      | `default_transaction_read_only=on`                       |
+
+These defaults apply to new physical connections, including roles created after
+server startup. Existing connections keep their settings; restart the database
+after editing the config. A session-level `SET` can override the default for that
+connection. Defaults are persisted through the mounted YAML rather than SQL
+catalog settings, so they are not equivalent to role settings for introspection,
+database-specific defaults, or PostgREST's catalog-based role-setting lookup.
+
+The adapter omits `session_preload_libraries=safeupdate` and
+`session_preload_libraries=supautils,safeupdate`: PostgreSQL shared libraries cannot
+be loaded into Doltgres. The safeupdate library's protection against `UPDATE` or
+`DELETE` without a `WHERE` clause is therefore unavailable. Doltgres debug logging
+remains enabled; `log_statement=none` does not replace `log_level: debug`.
+Connection checks verify the configured values, not PostgreSQL-equivalent timeout
+or read-only enforcement by Doltgres.
+
+The role-setting trial passed the initial schema, Auth schema, Storage schema,
+and post-setup search-path statements. Bootstrap then stopped in
+`00000000000003-post-setup.sql` while defining `extensions.grant_pg_cron_access()`:
+`ERROR: type "event_trigger" does not exist`. The bootstrap runner still stops at
+this error.
+
+To inspect that isolated trial:
+
+```sh
+docker logs supabase-role-settings-trial
+```
+
+The trial uses the separate volume `supabase_doltgres-role-settings-trial1`.
+Previous trial volumes are preserved. A retry after changing bootstrap SQL needs
+a fresh volume because partially initialized databases are not resumed.
 
 ## Previous startup result (1.0.0)
 

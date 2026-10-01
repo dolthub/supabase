@@ -7,6 +7,7 @@ FROM dolthub/doltgresql:1.3.3
 COPY --from=bootstrap /docker-entrypoint-initdb.d/ /opt/supabase/bootstrap/
 COPY predefined-roles.sql /opt/supabase/predefined-roles.sql
 COPY rewrite-default-privileges.sed /opt/supabase/rewrite-default-privileges.sed
+COPY rewrite-role-settings.sed /opt/supabase/rewrite-role-settings.sed
 RUN sed -i '/^create publication supabase_realtime;$/d' /opt/supabase/bootstrap/init-scripts/00000000000000-initial-schema.sql
 RUN sed -i \
       -e '/^create extension if not exists pgcrypto /d' \
@@ -20,6 +21,14 @@ RUN find /opt/supabase/bootstrap -type f -name '*.sql' \
       'for sql_file do \
         if grep -zqiE "alter[[:space:]]+default[[:space:]]+privileges" "$sql_file"; then \
           printf "Unconverted default privileges in %s\n" "$sql_file" >&2; exit 1; \
+        fi; \
+      done' sh {} +
+RUN find /opt/supabase/bootstrap -type f -name '*.sql' \
+      -exec sed -E -i -f /opt/supabase/rewrite-role-settings.sed {} + \
+    && find /opt/supabase/bootstrap -type f -name '*.sql' -exec sh -c \
+      'for sql_file do \
+        if grep -zqiE "alter[[:space:]]+(role|user)[[:space:]]+[[:alnum:]_]+[[:space:]]+set[[:space:]]" "$sql_file"; then \
+          printf "Unconverted role setting in %s\n" "$sql_file" >&2; exit 1; \
         fi; \
       done' sh {} +
 COPY --chmod=755 bootstrap.sh /docker-entrypoint-initdb.d/00-supabase.sh

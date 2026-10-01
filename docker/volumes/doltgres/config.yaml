@@ -10,3 +10,36 @@ cfg_dir: /var/lib/doltgres/.doltcfg
 auth_file: /var/lib/doltgres/.doltcfg/auth.db
 privilege_file: /var/lib/doltgres/.doltcfg/privileges.db
 branch_control_file: /var/lib/doltgres/.doltcfg/branch_control.db
+
+# Replace the copied bootstrap's ALTER ROLE/USER ... SET defaults.
+# Timeout values are milliseconds. PostgreSQL preload libraries are omitted.
+user_session_vars:
+  - name: postgres
+    vars:
+      search_path: '"$user", public, extensions'
+  - name: supabase_admin
+    vars:
+      search_path: '"$user", public, auth, extensions'
+      log_statement: none
+  - name: supabase_auth_admin
+    vars:
+      search_path: auth
+      idle_in_transaction_session_timeout: 60000
+      log_statement: none
+  - name: supabase_storage_admin
+    vars:
+      search_path: storage
+      log_statement: none
+  - name: anon
+    vars:
+      statement_timeout: 3000
+  - name: authenticated
+    vars:
+      statement_timeout: 8000
+  - name: authenticator
+    vars:
+      statement_timeout: 8000
+      lock_timeout: 8000
+  - name: supabase_read_only_user
+    vars:
+      default_transaction_read_only: 'on'
