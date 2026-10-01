@@ -452,6 +452,28 @@ discovery, then fails the RPC function discovery query with
 port is no longer listening. The failing schema query was captured separately for
 investigation; CRUD and RPC remain unvalidated.
 
+The PostgREST fork rewrites the RPC discovery predicate `setting ~ ANY($2)` as
+a correlated `EXISTS` over `unnest($2::text[])`, avoiding the syntax failure in
+[dolthub/doltgresql#3499](https://github.com/dolthub/doltgresql/issues/3499).
+The recursive type-resolution CTE and comments remain; removing either did not
+resolve that error. The fixed-delimiter isolation-setting expression uses
+`split_part` instead of the unavailable `regexp_split_to_array`, preserving NULL
+when the setting lacks an equals sign.
+
+The rewritten SQL succeeds on PostgreSQL 15.19 and on the standalone local-main
+Doltgres image with the same test schemas and functions. PostgreSQL returns two
+RPC metadata rows; Doltgres returns zero despite both test functions existing and
+being callable. Passing this query therefore does not establish correct RPC
+discovery. SQL `PREPARE` is also unsupported in Doltgres; the standalone follow-up
+query uses the original parameter values as typed array literals. PostgREST uses
+the PostgreSQL wire protocol to bind its parameters.
+
+The rebuilt `postgrest:doltgres` trial passes the regex-ANY syntax blocker and now
+stops schema loading at `function: 'parse_ident' not found`. Unlike the earlier
+syntax failure, the process stays running and retries; API requests return HTTP
+503 with `PGRST002`. RPC discovery correctness remains unresolved even though
+the syntax failure has been bypassed.
+
 ## Previous startup result (1.0.0)
 
 The earlier trial with Doltgres 1.0.0 started with debug logging, then stopped in
