@@ -14,6 +14,8 @@ services:
 
   rest:
     environment:
+      # Skip catalog configuration and role-settings queries (#3493, #3494).
+      PGRST_DB_CONFIG: 'false'
       # Doltgres 1.3.3 lacks LISTEN/NOTIFY. Reload the schema cache with SIGUSR1.
       PGRST_DB_CHANNEL_ENABLED: 'false'
 

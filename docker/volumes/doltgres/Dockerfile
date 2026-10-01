@@ -5,6 +5,7 @@ FROM supabase/postgres:17.6.1.136 AS bootstrap
 FROM dolthub/doltgresql:main
 
 COPY --from=bootstrap /docker-entrypoint-initdb.d/ /opt/supabase/bootstrap/
+COPY postgrest-compat.sql /opt/supabase/bootstrap/migrations/01-doltgres-postgrest-compat.sql
 COPY predefined-roles.sql /opt/supabase/predefined-roles.sql
 COPY rewrite-default-privileges.sed /opt/supabase/rewrite-default-privileges.sed
 COPY rewrite-role-settings.sed /opt/supabase/rewrite-role-settings.sed

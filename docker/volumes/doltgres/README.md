@@ -319,6 +319,63 @@ The trial uses `supabase_doltgres-main-panic-fix-trial1`. Inspect it with:
 docker logs supabase-main-panic-fix-trial
 ```
 
+## PostgREST trial result
+
+PostgREST `v14.17` was started against the healthy local-main database trial,
+with the existing Doltgres settings and `PGRST_DB_CHANNEL_ENABLED=false`.
+It connects as `authenticator`, but cannot load its schema cache:
+
+```text
+function: 'pg_is_other_temp_schema' not found
+```
+
+Startup also reports `unable to resolve type regrole` while querying database
+configuration, and `function filters are not yet supported` while querying role
+settings. The API returns HTTP 503 with `PGRST002` (schema cache unavailable), so
+REST CRUD and RPC have not been validated.
+
+The preserved container is `supabase-postgrest-trial`. It points directly to
+`supabase-main-panic-fix-trial` on the Compose network and publishes the API only
+on `127.0.0.1:13000`, without starting other services:
+
+```sh
+docker logs supabase-postgrest-trial
+curl -i http://127.0.0.1:13000/
+```
+
+## PostgREST catalog workarounds
+
+The Doltgres override sets `PGRST_DB_CONFIG=false`. PostgREST uses its environment
+configuration and skips database configuration and role-settings discovery,
+bypassing the missing `regrole` type and unsupported aggregate `FILTER` syntax.
+Settings stored through `ALTER ROLE` or a database pre-config function are not
+loaded. PostgREST still switches to the request's role, but does not automatically
+apply that role's catalog settings, including statement timeouts and transaction
+isolation defaults. Doltgres YAML settings for new physical connections do not
+replace settings for roles selected later within those connections.
+
+The adapter installs `postgrest-compat.sql` after the init scripts and before the
+upstream migrations. Its `pg_catalog.pg_is_other_temp_schema(oid)` function
+returns false, allowing schema discovery without this missing built-in. This
+deployment must avoid temporary-table workloads because the helper cannot exclude
+other sessions' temporary schemas. Remove the helper when native support becomes
+available; its creation intentionally fails if a function with the same signature
+already exists. The standard Postgres stack is unchanged.
+
+For an already initialized trial database, apply the helper once:
+
+```sh
+docker cp volumes/doltgres/postgrest-compat.sql supabase-main-panic-fix-trial:/tmp/postgrest-compat.sql
+docker exec supabase-main-panic-fix-trial psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -f /tmp/postgrest-compat.sql
+```
+
+These commands assume the working directory is `docker/`. Recreate PostgREST to
+pick up the environment change. The preserved `supabase-postgrest-trial` has both
+workarounds applied. It gets past the three earlier errors but stops loading its
+schema cache at `function: '_pg_char_max_length' not found`, referring to
+`information_schema._pg_char_max_length`. Requests still return HTTP 503 with
+`PGRST002`, so CRUD and RPC remain unvalidated.
+
 ## Previous startup result (1.0.0)
 
 The earlier trial with Doltgres 1.0.0 started with debug logging, then stopped in
