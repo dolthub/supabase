@@ -107,10 +107,32 @@ Edge Functions invoked directly and Auth HTTP hooks are independent of `pg_net`.
 Cron itself is a separate extension requirement; disabling `pg_net` removes its
 HTTP request functionality rather than providing a scheduler.
 
-The extension-free trial passed `uuid-ossp` installation in `public`, then stopped
-at `ALTER DEFAULT PRIVILEGES` in the initial schema: Doltgres 1.3.3 reports that
-statement as unsupported. The webhook compatibility role and later migrations
-have not yet been reached by a complete bootstrap.
+## Default privilege workaround
+
+The adapter rewrites the copied bootstrap's schema-scoped
+`ALTER DEFAULT PRIVILEGES ... GRANT ALL` statements into
+`GRANT ALL ON ALL TABLES`, `SEQUENCES`, `FUNCTIONS`, or `ROUTINES IN SCHEMA`.
+Multiline statements and grants inside helper functions are included; recipient
+roles and `WITH GRANT OPTION` are preserved. The image build fails if an
+unsupported default-privilege statement remains. Mounted self-hosted SQL is
+unchanged; the active mounts contain no default-privilege statements.
+
+In Doltgres 1.3.3 these grants apply to existing and future objects throughout the
+schema. They are broader than PostgreSQL defaults: `FOR USER`/`FOR ROLE` creator
+scope is dropped, and an individual object's `REVOKE` does not override the
+schema-wide grant. This is a development workaround, not equivalent PostgreSQL
+permission behavior. The standard Postgres image and initialization are unchanged.
+
+From the repository root, run the rewrite checks with:
+
+```sh
+python3 docker/volumes/doltgres/test_default_privileges.py
+```
+
+The schema-wide grant trial passed the initial public table, function, and
+sequence grants. Bootstrap then stopped at
+`ALTER USER supabase_admin SET search_path TO public, extensions`, with a syntax
+error near `SET`. Role configuration is the next compatibility blocker.
 
 ## Previous startup result (1.0.0)
 
