@@ -1,4 +1,5 @@
 import { createLogCellSkeleton, createMarkdownCellSkeleton, createQueryCellSkeleton } from './utils'
+import { IS_QUERY_STATISTICS_ENABLED } from '@/lib/database-capabilities'
 import type { Notebooks } from '@/types'
 
 export type NotebookTemplate = {
@@ -317,26 +318,30 @@ export const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
         ].join('\n'),
         time_range: { _tag: 'relative_time_range', unit: 'day', amount: 2 },
       }),
-      createMarkdownCellSkeleton({
-        content: [
-          '### Slowest queries',
-          '',
-          "The most expensive queries by total execution time since `pg_stat_statements` was last reset. If the failing paths above line up with a query here that's slow or spiking in `calls`, the errors are likely timeouts or connection exhaustion caused by the database, not an application bug.",
-        ].join('\n'),
-      }),
-      createQueryCellSkeleton({
-        title: 'Slowest queries',
-        sql: [
-          'select',
-          '  calls,',
-          '  round(mean_exec_time::numeric, 2) as avg_ms,',
-          '  round(total_exec_time::numeric, 2) as total_ms,',
-          '  query',
-          'from pg_stat_statements',
-          'order by total_exec_time desc',
-          'limit 20;',
-        ].join('\n'),
-      }),
+      ...(IS_QUERY_STATISTICS_ENABLED
+        ? [
+            createMarkdownCellSkeleton({
+              content: [
+                '### Slowest queries',
+                '',
+                "The most expensive queries by total execution time since `pg_stat_statements` was last reset. If the failing paths above line up with a query here that's slow or spiking in `calls`, the errors are likely timeouts or connection exhaustion caused by the database, not an application bug.",
+              ].join('\n'),
+            }),
+            createQueryCellSkeleton({
+              title: 'Slowest queries',
+              sql: [
+                'select',
+                '  calls,',
+                '  round(mean_exec_time::numeric, 2) as avg_ms,',
+                '  round(total_exec_time::numeric, 2) as total_ms,',
+                '  query',
+                'from pg_stat_statements',
+                'order by total_exec_time desc',
+                'limit 20;',
+              ].join('\n'),
+            }),
+          ]
+        : []),
       createMarkdownCellSkeleton({
         content: [
           '## Notes',

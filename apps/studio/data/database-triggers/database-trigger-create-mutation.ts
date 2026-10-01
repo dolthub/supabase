@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { databaseTriggerKeys } from './keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertDatabaseWebhooksEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type DatabaseTriggerCreateVariables = {
@@ -18,6 +19,12 @@ export async function createDatabaseTrigger({
   connectionString,
   payload,
 }: DatabaseTriggerCreateVariables) {
+  if (
+    payload.function_schema === 'supabase_functions' &&
+    payload.function_name === 'http_request'
+  ) {
+    assertDatabaseWebhooksEnabled()
+  }
   const { sql } = pgMeta.triggers.create(payload)
 
   const { result } = await executeSql({

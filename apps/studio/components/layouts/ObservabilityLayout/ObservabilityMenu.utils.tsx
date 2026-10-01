@@ -6,6 +6,7 @@ import { useSupamonitorStatus } from '@/components/interfaces/QueryPerformance/h
 import { useContentQuery, type Content, type ContentBase } from '@/data/content/content-query'
 import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
 import { IS_PLATFORM } from '@/lib/constants'
+import { IS_QUERY_STATISTICS_ENABLED } from '@/lib/database-capabilities'
 import { SHORTCUT_IDS, type ShortcutId } from '@/state/shortcuts/registry'
 import { type Dashboards } from '@/types'
 
@@ -145,7 +146,10 @@ export const useGenerateObservabilityMenu = () => {
     {
       title: 'GENERAL',
       key: 'general-section',
-      items: generalItems,
+      items: generalItems.filter(
+        (item) =>
+          IS_QUERY_STATISTICS_ENABLED || !['query-performance', 'query-insights'].includes(item.key)
+      ),
     },
   ]
 

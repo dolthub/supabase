@@ -1,8 +1,9 @@
 # Local Doltgres trial
 
 This override runs the existing Supabase services against Doltgres with debug
-logging, with Realtime and logical replication disabled. It assumes PostgreSQL compatibility, including the extensions used by
-the pinned Supabase bootstrap SQL. Bootstrap stops at the first SQL error.
+logging, with Realtime, logical replication, SQL cryptography, query statistics,
+and database webhooks disabled. Bootstrap stops at the first remaining SQL error;
+the complete stack has not yet been validated against Doltgres.
 
 The adapter image copies SQL from `supabase/postgres:17.6.1.136` and runs it against
 `dolthub/doltgresql:1.3.3`. It keeps the existing service roles, `db:5432`, and the
@@ -28,7 +29,7 @@ Studio is available through the gateway at `http://localhost:8000`, using
 `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` from `.env`.
 
 The override builds Studio with
-`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication`. This disables
+`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto`. This disables
 publication queries and mutations, per-table Realtime controls, and Realtime and
 replication pages. The adapter removes the initial `CREATE PUBLICATION` statement
 from the copied SQL and does not initialize `_realtime`. The Realtime service is
@@ -39,7 +40,7 @@ Postgres Changes, database Broadcast, client Broadcast, and Presence are
 unavailable. Other Doltgres compatibility errors still stop bootstrap.
 
 For Studio development outside Docker, set
-`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication` before starting
+`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto` before starting
 the dev server. The default PostgreSQL stack keeps replication enabled.
 
 The base stack's fixed container names mean another self-hosted Compose stack
@@ -80,6 +81,36 @@ override: it targets the standard Postgres development configuration.
 
 This setup does not change `supabase start`, `pnpm dev:studio-local`, or the
 CLI-backed E2E environment.
+
+## Optional extension workarounds
+
+The adapter installs `uuid-ossp` in `public` and omits `pgcrypto` and
+`pg_stat_statements` installation. The `extensions` schema remains for Supabase's
+helper functions. Doltgres 1.3.3 supplies `gen_random_uuid()` independently of
+`pgcrypto`; application-side Auth password hashing is also independent.
+
+Instead of initializing database webhooks, the override mounts
+`disabled-webhooks.sql`, which preserves `supabase_functions_admin` for the later
+password setup. It does not create `supabase_functions` or an HTTP trigger.
+
+Studio hides the unavailable extensions and integrations, rejects their enable
+mutations, and disables statistics queries, workload index suggestions, and
+statistics-dependent templates. Direct integration and query performance routes
+show an unavailable state. The default Postgres and hosted deployments retain
+their capabilities.
+
+SQL cryptography (`digest`, `hmac`, `crypt`, encryption, and random bytes), Query
+Performance statistics, database webhooks, and HTTP calls from SQL are unavailable.
+REST CRUD and ordinary RPC calls do not depend on these extensions. Custom SQL,
+RPC functions, seeds, or triggers that call missing functions will still fail.
+Edge Functions invoked directly and Auth HTTP hooks are independent of `pg_net`.
+Cron itself is a separate extension requirement; disabling `pg_net` removes its
+HTTP request functionality rather than providing a scheduler.
+
+The extension-free trial passed `uuid-ossp` installation in `public`, then stopped
+at `ALTER DEFAULT PRIVILEGES` in the initial schema: Doltgres 1.3.3 reports that
+statement as unsupported. The webhook compatibility role and later migrations
+have not yet been reached by a complete bootstrap.
 
 ## Previous startup result (1.0.0)
 

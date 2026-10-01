@@ -17,6 +17,7 @@ import {
 import { useInfraMonitoringAttributesQuery } from '@/data/analytics/infra-monitoring-query'
 import { useMaxConnectionsQuery } from '@/data/database/max-connections-query'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
+import { IS_QUERY_STATISTICS_ENABLED } from '@/lib/database-capabilities'
 
 type DatabaseInfrastructureSectionProps = {
   interval: '1hr' | '1day' | '7day'
@@ -121,21 +122,23 @@ export const DatabaseInfrastructureSection = ({
       <h2 className="mb-4">Database</h2>
       {/* First row: Metrics */}
       <div className="grid grid-cols-3 gap-2">
-        <Link
-          href={`/project/${projectRef}/observability/query-performance?totalTimeFilter=${encodeURIComponent(JSON.stringify({ operator: '>', value: 1000 }))}`}
-          className="block group"
-        >
-          <MetricCard isLoading={slowQueriesLoading}>
-            <MetricCardHeader linkTooltip="Go to query performance">
-              <MetricCardLabel tooltip="Queries with total execution time (execution time + planning time) greater than 1000ms. High values may indicate query optimization opportunities">
-                Slow Queries
-              </MetricCardLabel>
-            </MetricCardHeader>
-            <MetricCardContent>
-              <MetricCardValue>{slowQueriesCount}</MetricCardValue>
-            </MetricCardContent>
-          </MetricCard>
-        </Link>
+        {IS_QUERY_STATISTICS_ENABLED && (
+          <Link
+            href={`/project/${projectRef}/observability/query-performance?totalTimeFilter=${encodeURIComponent(JSON.stringify({ operator: '>', value: 1000 }))}`}
+            className="block group"
+          >
+            <MetricCard isLoading={slowQueriesLoading}>
+              <MetricCardHeader linkTooltip="Go to query performance">
+                <MetricCardLabel tooltip="Queries with total execution time (execution time + planning time) greater than 1000ms. High values may indicate query optimization opportunities">
+                  Slow Queries
+                </MetricCardLabel>
+              </MetricCardHeader>
+              <MetricCardContent>
+                <MetricCardValue>{slowQueriesCount}</MetricCardValue>
+              </MetricCardContent>
+            </MetricCard>
+          </Link>
+        )}
 
         {(['connections', 'disk', 'diskIo', 'ram', 'cpu'] as const).map((metric) => (
           <DatabaseInfrastructureMetric

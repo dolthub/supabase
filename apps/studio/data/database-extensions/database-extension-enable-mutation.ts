@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { databaseExtensionsKeys } from './keys'
 import { configKeys } from '@/data/config/keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertDatabaseExtensionSupported } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type DatabaseExtensionEnableVariables = {
@@ -26,6 +27,7 @@ export async function enableDatabaseExtension({
   cascade = false,
   createSchema = false,
 }: DatabaseExtensionEnableVariables) {
+  assertDatabaseExtensionSupported(name)
   let headers = new Headers()
   if (connectionString) headers.set('x-connection-encrypted', connectionString)
 

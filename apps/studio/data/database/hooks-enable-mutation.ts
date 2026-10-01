@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 
 import { invalidateSchemasQuery } from './schemas-query'
 import { handleError, post } from '@/data/fetchers'
+import { assertDatabaseWebhooksEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type HooksEnableVariables = {
@@ -10,6 +11,7 @@ export type HooksEnableVariables = {
 }
 
 export async function enableDatabaseWebhooks({ ref }: HooksEnableVariables) {
+  assertDatabaseWebhooksEnabled()
   const { data, error } = await post('/platform/database/{ref}/hook-enable', {
     params: { path: { ref } },
   })

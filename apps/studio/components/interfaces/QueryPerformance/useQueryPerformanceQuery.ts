@@ -20,6 +20,7 @@ import { executeSql } from '@/data/sql/execute-sql-mutation'
 import useDbQuery from '@/hooks/analytics/useDbQuery'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { IS_PLATFORM } from '@/lib/constants'
+import { IS_QUERY_STATISTICS_ENABLED } from '@/lib/database-capabilities'
 import { useDatabaseSelectorStateSnapshot } from '@/state/database-selector'
 
 const VALID_SORT_COLUMNS: ReadonlySet<string> = new Set<QueryPerformanceSort['column']>([
@@ -174,6 +175,8 @@ export const useQueryPerformanceInfiniteQuery = (
       ],
       initialPageParam: 1,
       queryFn: ({ pageParam, signal }) => {
+        if (!IS_QUERY_STATISTICS_ENABLED)
+          throw new Error('Query statistics are disabled for this deployment.')
         const { sql } = generateQueryPerformanceSql({
           ...props,
           page: pageParam,
@@ -195,7 +198,10 @@ export const useQueryPerformanceInfiniteQuery = (
       // For replicas this prevents a silent fallback to the primary before replicas load.
       // In self-hosted mode (IS_PLATFORM=false) there is no real connection string, so we
       // skip the check — executeSql works fine without one on self-hosted deployments.
-      enabled: Boolean(project?.ref) && (!IS_PLATFORM || Boolean(effectiveConnectionString)),
+      enabled:
+        IS_QUERY_STATISTICS_ENABLED &&
+        Boolean(project?.ref) &&
+        (!IS_PLATFORM || Boolean(effectiveConnectionString)),
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     })

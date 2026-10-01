@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { databaseKeys } from './keys'
 import { filterProtectedSchemaIndexStatements } from '@/components/interfaces/QueryPerformance/IndexAdvisor/index-advisor.utils'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { IS_QUERY_STATISTICS_ENABLED } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomQueryOptions } from '@/types'
 
 export type TableIndexAdvisorVariables = {
@@ -88,6 +89,8 @@ export async function getTableIndexAdvisorSuggestions({
   if (!schema) throw new Error('Schema is required')
   if (!table) throw new Error('Table is required')
 
+  if (!IS_QUERY_STATISTICS_ENABLED) return { suggestions: [], columnsWithSuggestions: [] }
+
   const sql = getTableIndexAdvisorSql(schema, table)
 
   const { result } = await executeSql<Array<GetTableIndexAdvisorSuggestionsResponse>>({
@@ -156,7 +159,12 @@ export function useTableIndexAdvisorQuery<TData = TableIndexAdvisorData>(
         schema,
         table,
       }),
-    enabled: enabled && typeof projectRef !== 'undefined' && !!schema && !!table,
+    enabled:
+      IS_QUERY_STATISTICS_ENABLED &&
+      enabled &&
+      typeof projectRef !== 'undefined' &&
+      !!schema &&
+      !!table,
     retry: false,
     staleTime: 5 * 60 * 1000,
     ...options,

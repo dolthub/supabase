@@ -1,6 +1,7 @@
 import { getEnableDatabaseExtensionSQL } from '@supabase/pg-meta'
 
 import { DatabaseExtension } from '@/data/database-extensions/database-extensions-query'
+import { assertDatabaseExtensionSupported } from '@/lib/database-capabilities'
 
 export const getEnableExtensionsSQL = ({
   extensions,
@@ -20,6 +21,7 @@ export const getEnableExtensionsSQL = ({
        * than using dashboard's `useDatabaseExtensionDefaultSchemaQuery` - we can technically save a query if so
        */
       const { name, default_version: version } = extension
+      assertDatabaseExtensionSupported(name)
       const createSchema = extensionsSchema[name].schema === 'custom'
       const schema =
         name === 'pg_cron'

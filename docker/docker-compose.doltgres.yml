@@ -10,7 +10,7 @@ services:
       dockerfile: apps/studio/Dockerfile
       target: production
       args:
-        NEXT_PUBLIC_DISABLED_FEATURES: realtime:all,database:replication
+        NEXT_PUBLIC_DISABLED_FEATURES: realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto
 
   realtime:
     profiles: [realtime-disabled]
@@ -40,7 +40,7 @@ services:
     volumes: !override
       - doltgres-data:/var/lib/doltgres
       - ./volumes/doltgres/config.yaml:/etc/doltgres/servercfg.d/config.yaml:ro,z
-      - ./volumes/db/webhooks.sql:/opt/supabase/bootstrap/init-scripts/98-webhooks.sql:ro,z
+      - ./volumes/doltgres/disabled-webhooks.sql:/opt/supabase/bootstrap/init-scripts/98-webhooks.sql:ro,z
       - ./volumes/db/roles.sql:/opt/supabase/bootstrap/init-scripts/99-roles.sql:ro,z
       - ./volumes/db/jwt.sql:/opt/supabase/bootstrap/init-scripts/99-jwt.sql:ro,z
       - ./volumes/db/_supabase.sql:/opt/supabase/bootstrap/migrations/97-_supabase.sql:ro,z

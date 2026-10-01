@@ -21,6 +21,7 @@ import {
 import { useCLIReleaseVersionQuery } from '@/data/misc/cli-release-version-query'
 import { useIsFeatureEnabled } from '@/hooks/misc/useIsFeatureEnabled'
 import { useIsWarehouseEnabled } from '@/hooks/misc/useIsWarehouseEnabled'
+import { isDatabaseExtensionSupported } from '@/lib/database-capabilities'
 
 const renderMarketplaceLogo = (listingLogo?: string | null) => {
   const MarketplaceLogo = ({ className, ...props }: { className?: string } = {}) => (
@@ -222,6 +223,7 @@ export const useAvailableIntegrations = () => {
   // extensions are not available on this DB image), the UI will provide a tooltip explaining why.
   const allIntegrations = useMemo(() => {
     return INTEGRATIONS.filter((integration) => {
+      if (!integration.requiredExtensions.every(isDatabaseExtensionSupported)) return false
       if (!integrationsWrappers && integration.type === 'wrapper') {
         return false
       }

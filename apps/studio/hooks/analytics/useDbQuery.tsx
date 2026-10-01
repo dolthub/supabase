@@ -11,6 +11,7 @@ import { useReadReplicasQuery } from '@/data/read-replicas/replicas-query'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
 import { IS_PLATFORM } from '@/lib/constants'
+import { IS_QUERY_STATISTICS_ENABLED, isQueryStatisticsSql } from '@/lib/database-capabilities'
 import { useDatabaseSelectorStateSnapshot } from '@/state/database-selector'
 
 export interface DbQueryHook<T = any> {
@@ -55,6 +56,7 @@ const useDbQuery = ({
     : connectionString
 
   const resolvedSql = typeof sql === 'function' ? sql([]) : sql
+  const isAvailable = IS_QUERY_STATISTICS_ENABLED || !isQueryStatisticsSql(resolvedSql)
 
   const {
     data,
@@ -67,11 +69,18 @@ const useDbQuery = ({
       'projects',
       project?.ref,
       'db',
-      { ...params, sql: resolvedSql, identifier, connectionString: effectiveConnectionString },
+      {
+        ...params,
+        sql: resolvedSql,
+        identifier,
+        connectionString: effectiveConnectionString,
+        isAvailable,
+      },
       where,
       orderBy,
     ],
     queryFn: ({ signal }) => {
+      if (!isAvailable) throw new Error('Query statistics are disabled for this deployment.')
       return executeSql(
         {
           projectRef: project?.ref,
@@ -85,16 +94,17 @@ const useDbQuery = ({
     // For replicas this prevents a silent fallback to the primary before replicas load.
     // In self-hosted mode (IS_PLATFORM=false) there is no real connection string, so we
     // skip the check — executeSql works fine without one on self-hosted deployments.
-    enabled: Boolean(resolvedSql) && (!IS_PLATFORM || Boolean(effectiveConnectionString)),
+    enabled:
+      isAvailable && Boolean(resolvedSql) && (!IS_PLATFORM || Boolean(effectiveConnectionString)),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
 
   const error = rqError || (typeof data === 'object' ? data?.error : '')
   return {
-    error,
+    error: isAvailable ? error : 'Query statistics are disabled for this deployment.',
     data,
-    isLoading: isPending,
+    isLoading: isAvailable && isPending,
     isRefetching,
     params,
     runQuery: refetch,

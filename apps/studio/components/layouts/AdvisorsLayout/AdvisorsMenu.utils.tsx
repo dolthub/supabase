@@ -7,6 +7,7 @@ import type {
   ProductMenuGroupItem,
 } from '@/components/ui/ProductMenu/ProductMenu.types'
 import { IS_PLATFORM } from '@/lib/constants'
+import { IS_QUERY_STATISTICS_ENABLED } from '@/lib/database-capabilities'
 import { SHORTCUT_IDS } from '@/state/shortcuts/registry'
 
 export const generateAdvisorsMenu = ({
@@ -58,7 +59,9 @@ export const generateAdvisorsMenu = ({
   return [
     {
       title: 'Advisors',
-      items: advisorItems,
+      items: advisorItems.filter(
+        (item) => IS_QUERY_STATISTICS_ENABLED || item.key !== 'query-performance'
+      ),
     },
     ...(isPlatform && isAdvisorRulesEnabled
       ? [

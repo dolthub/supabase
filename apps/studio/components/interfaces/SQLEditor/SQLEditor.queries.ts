@@ -1,6 +1,12 @@
 import type { SQLTemplate } from './SQLEditor.types'
 import { DOCS_URL } from '@/lib/constants'
-import { IS_REPLICATION_ENABLED } from '@/lib/database-capabilities'
+import {
+  IS_DATABASE_WEBHOOKS_ENABLED,
+  IS_QUERY_STATISTICS_ENABLED,
+  IS_REPLICATION_ENABLED,
+  IS_SQL_CRYPTO_ENABLED,
+  isQueryStatisticsSql,
+} from '@/lib/database-capabilities'
 
 const templates: SQLTemplate[] = [
   {
@@ -1636,6 +1642,11 @@ using (true);
   },
 ]
 
-export const SQL_TEMPLATES = IS_REPLICATION_ENABLED
-  ? templates
-  : templates.filter((template) => !/publication|pg_replication_slots/i.test(template.sql))
+export const SQL_TEMPLATES = templates.filter((template) => {
+  if (!IS_REPLICATION_ENABLED && /publication|pg_replication_slots/i.test(template.sql))
+    return false
+  if (!IS_QUERY_STATISTICS_ENABLED && isQueryStatisticsSql(template.sql)) return false
+  if (!IS_SQL_CRYPTO_ENABLED && /\bpgcrypto\b/i.test(template.sql)) return false
+  if (!IS_DATABASE_WEBHOOKS_ENABLED && /\bpg_net\b|\bnet\.http_/i.test(template.sql)) return false
+  return true
+})

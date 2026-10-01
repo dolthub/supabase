@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 
 import { databaseTriggerKeys } from './keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertDatabaseWebhooksEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 // [Joshen] Writing this query within FE as the PATCH endpoint from pg-meta only supports updating
@@ -29,6 +30,12 @@ export async function updateDatabaseTrigger({
   originalTrigger,
   updatedTrigger,
 }: DatabaseTriggerUpdateVariables) {
+  if (
+    updatedTrigger.function_schema === 'supabase_functions' &&
+    updatedTrigger.function_name === 'http_request'
+  ) {
+    assertDatabaseWebhooksEnabled()
+  }
   const sql = getDatabaseTriggerUpdateSQL({ originalTrigger, updatedTrigger })
   await executeSql({
     projectRef,
