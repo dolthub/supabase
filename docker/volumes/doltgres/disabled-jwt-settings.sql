@@ -1,0 +1,3 @@
+-- Doltgres 1.3.3 does not support ALTER DATABASE ... SET.
+-- Auth receives JWT expiry through GOTRUE_JWT_EXP in Compose.
+-- Direct SQL connections have no database-level app.settings.jwt_exp default.

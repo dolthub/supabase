@@ -41,13 +41,12 @@ services:
       PGPORT: '5432'
       PGDATABASE: postgres
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      JWT_EXP: ${JWT_EXPIRY}
     volumes: !override
       - doltgres-data:/var/lib/doltgres
       - ./volumes/doltgres/config.yaml:/etc/doltgres/servercfg.d/config.yaml:ro,z
       - ./volumes/doltgres/disabled-webhooks.sql:/opt/supabase/bootstrap/init-scripts/98-webhooks.sql:ro,z
       - ./volumes/db/roles.sql:/opt/supabase/bootstrap/init-scripts/99-roles.sql:ro,z
-      - ./volumes/db/jwt.sql:/opt/supabase/bootstrap/init-scripts/99-jwt.sql:ro,z
+      - ./volumes/doltgres/disabled-jwt-settings.sql:/opt/supabase/bootstrap/init-scripts/99-jwt.sql:ro,z
       - ./volumes/db/_supabase.sql:/opt/supabase/bootstrap/migrations/97-_supabase.sql:ro,z
       - ./volumes/db/logs.sql:/opt/supabase/bootstrap/migrations/99-logs.sql:ro,z
       - ./volumes/db/pooler.sql:/opt/supabase/bootstrap/migrations/99-pooler.sql:ro,z

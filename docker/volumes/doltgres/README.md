@@ -230,6 +230,31 @@ The fresh event-trigger-free trial passed post-setup and stopped in the mounted
 docker logs supabase-eventless-trial
 ```
 
+## Database JWT settings workaround
+
+The Doltgres override mounts `disabled-jwt-settings.sql` in place of `99-jwt.sql`.
+This skips the unsupported `ALTER DATABASE postgres SET "app.settings.jwt_exp"`
+statement. The unused `JWT_EXP` variable is removed from the database container.
+The standard Postgres stack still runs its original JWT settings script.
+
+Auth continues to receive `GOTRUE_JWT_EXP` from `JWT_EXPIRY`. Direct SQL connections
+have no database-level `app.settings.jwt_exp` default; custom SQL that reads it
+must supply the value separately. PostgREST's `PGRST_APP_SETTINGS_JWT_EXP`
+configuration is retained, but its transaction-local custom settings still need
+Doltgres compatibility work: `set_config('app.settings.jwt_exp', '3600', true)`
+fails on 1.3.3. The session-level form with `false` works only for that connection
+and does not replace a persisted database default.
+
+The fresh JWT-settings trial passed all init scripts and reached the migrations.
+It stopped at `DROP EXTENSION IF EXISTS pg_graphql` in
+`20220404205710_pg_graphql-on-by-default.sql:42` with
+`ERROR: DROP EXTENSION is not yet implemented`. Its separate volume is
+`supabase_doltgres-jwt-settings-trial1`. Inspect the preserved container with:
+
+```sh
+docker logs supabase-jwt-settings-trial
+```
+
 ## Previous startup result (1.0.0)
 
 The earlier trial with Doltgres 1.0.0 started with debug logging, then stopped in
