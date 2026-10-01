@@ -275,6 +275,24 @@ failure and stopped at
 docker logs supabase-graphql-drop-trial
 ```
 
+## Procedural query comment workaround
+
+Doltgres 1.3.3 misparses line comments in subqueries inside `DO` blocks
+([#3488](https://github.com/dolthub/doltgresql/issues/3488)). The adapter converts
+three comments in `20241215003910_backfill_pgmq_metadata.sql` to block comments,
+preserving the conditions and statements in both procedural blocks. Other
+migrations and the standard Postgres bootstrap are unchanged.
+
+The rebuilt image passed both blocks on a fresh volume, then stopped in
+`20250205144616_move_orioledb_to_extensions_schema.sql:23` with
+`ERROR: receiveMessage recovered panic: interface conversion: interface {} is nil, not bool`.
+The complete stack still cannot start. This trial uses the separate volume
+`supabase_doltgres-do-comment-trial1`; inspect its preserved container with:
+
+```sh
+docker logs supabase-do-comment-trial
+```
+
 ## Previous startup result (1.0.0)
 
 The earlier trial with Doltgres 1.0.0 started with debug logging, then stopped in

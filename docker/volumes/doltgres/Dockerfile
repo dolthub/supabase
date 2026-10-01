@@ -51,4 +51,11 @@ RUN sed -E -i '/^[[:space:]]*drop[[:space:]]+extension[[:space:]]+if[[:space:]]+
       /opt/supabase/bootstrap/migrations/20220613123923_pg_graphql-pg-dump-perms.sql \
       /opt/supabase/bootstrap/migrations/20231017062225_grant_pg_graphql_permissions_for_custom_roles.sql \
       /opt/supabase/bootstrap/migrations/20260421000000_pg_graphql-off-by-default.sql
+# Doltgres 1.3.3 misparses line comments in procedural subqueries (#3488).
+# Use block comments in the affected expressions without changing their SQL.
+RUN sed -i \
+      -e 's/-- regular table$/\/\* regular table \*\//' \
+      -e 's/-- Make sure only expected columns exist and are correctly named$/\/\* Make sure only expected columns exist and are correctly named \*\//' \
+      -e 's/-- include ordinary and unlogged tables$/\/\* include ordinary and unlogged tables \*\//' \
+      /opt/supabase/bootstrap/migrations/20241215003910_backfill_pgmq_metadata.sql
 COPY --chmod=755 bootstrap.sh /docker-entrypoint-initdb.d/00-supabase.sh
