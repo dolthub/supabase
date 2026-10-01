@@ -44,4 +44,11 @@ RUN sed -i '/^-- Trigger for pg_cron/,/^-- Supabase dashboard user/{ /^-- Supaba
           printf "Unconverted event trigger in %s\n" "$sql_file" >&2; exit 1; \
         fi; \
       done' sh {} +
+# pg_graphql is unavailable in 1.3.3, so these absent-extension drops are no-ops.
+# Preserve each migration's placeholder, grants, and conditional installation.
+RUN sed -E -i '/^[[:space:]]*drop[[:space:]]+extension[[:space:]]+if[[:space:]]+exists[[:space:]]+pg_graphql;[[:space:]]*$/Id' \
+      /opt/supabase/bootstrap/migrations/20220404205710_pg_graphql-on-by-default.sql \
+      /opt/supabase/bootstrap/migrations/20220613123923_pg_graphql-pg-dump-perms.sql \
+      /opt/supabase/bootstrap/migrations/20231017062225_grant_pg_graphql_permissions_for_custom_roles.sql \
+      /opt/supabase/bootstrap/migrations/20260421000000_pg_graphql-off-by-default.sql
 COPY --chmod=755 bootstrap.sh /docker-entrypoint-initdb.d/00-supabase.sh

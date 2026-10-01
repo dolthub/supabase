@@ -255,6 +255,26 @@ It stopped at `DROP EXTENSION IF EXISTS pg_graphql` in
 docker logs supabase-jwt-settings-trial
 ```
 
+## Absent GraphQL extension drop workaround
+
+The adapter removes only `DROP EXTENSION IF EXISTS pg_graphql` from the four
+pinned migrations that use it. Doltgres 1.3.3 does not provide `pg_graphql`, so
+these statements have no extension to remove on a fresh volume. The GraphQL
+placeholder, grants, and conditional installation blocks are preserved. Other
+extension drops are not rewritten. Revisit this workaround if the adapter later
+supports `pg_graphql`.
+
+The image built successfully, and comparison of its migration SQL confirmed that
+only those four drop statements changed. The fresh trial passed the earlier drop
+failure and stopped at
+`20241215003910_backfill_pgmq_metadata.sql:42` with
+`ERROR: at or near "EOF": syntax error`. Its separate volume is
+`supabase_doltgres-graphql-drop-trial1`. Inspect the preserved container with:
+
+```sh
+docker logs supabase-graphql-drop-trial
+```
+
 ## Previous startup result (1.0.0)
 
 The earlier trial with Doltgres 1.0.0 started with debug logging, then stopped in
