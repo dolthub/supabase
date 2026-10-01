@@ -6,6 +6,7 @@ import { DatabaseLayout } from './DatabaseLayout'
 import { PageLayout } from '@/components/layouts/PageLayout/PageLayout'
 import { NoPermission } from '@/components/ui/NoPermission'
 import { useAsyncCheckPermissions } from '@/hooks/misc/useCheckPermissions'
+import { IS_EVENT_TRIGGERS_ENABLED } from '@/lib/database-capabilities'
 
 type DatabaseTriggersLayoutProps = PropsWithChildren
 
@@ -21,10 +22,9 @@ export const DatabaseTriggersLayout = ({ children }: DatabaseTriggersLayoutProps
       label: 'Data',
       href: `/project/${ref}/database/triggers/data`,
     },
-    {
-      label: 'Event',
-      href: `/project/${ref}/database/triggers/event`,
-    },
+    ...(IS_EVENT_TRIGGERS_ENABLED
+      ? [{ label: 'Event', href: `/project/${ref}/database/triggers/event` }]
+      : []),
   ]
 
   return (

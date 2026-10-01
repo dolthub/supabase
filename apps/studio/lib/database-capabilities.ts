@@ -23,6 +23,16 @@ export const IS_SQL_CRYPTO_ENABLED =
   IS_PLATFORM ||
   !process.env.NEXT_PUBLIC_DISABLED_FEATURES?.split(',').includes('database:sql_crypto')
 
+export const IS_EVENT_TRIGGERS_ENABLED =
+  IS_PLATFORM ||
+  !process.env.NEXT_PUBLIC_DISABLED_FEATURES?.split(',').includes('database:event_triggers')
+
+export function assertEventTriggersEnabled() {
+  if (!IS_EVENT_TRIGGERS_ENABLED) {
+    throw new Error('Event triggers are disabled for this deployment.')
+  }
+}
+
 export function isDatabaseExtensionSupported(name: string) {
   if (name === 'pgcrypto') return IS_SQL_CRYPTO_ENABLED
   if (name === 'pg_stat_statements') return IS_QUERY_STATISTICS_ENABLED

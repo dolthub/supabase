@@ -1,3 +1,4 @@
+import { safeSql } from '@supabase/pg-meta'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const platform = vi.hoisted(() => ({ enabled: false }))
@@ -146,5 +147,52 @@ describe('replication capability', () => {
       SQL_TEMPLATES.some((template) => /publication|pg_replication_slots/i.test(template.sql))
     ).toBe(false)
     expect(SQL_TEMPLATES.some((template) => template.title === 'Create table')).toBe(true)
+  })
+})
+
+describe('event trigger capability', () => {
+  it.each([false, true])('keeps event triggers enabled by default (hosted=%s)', async (hosted) => {
+    platform.enabled = hosted
+    vi.stubEnv('NEXT_PUBLIC_DISABLED_FEATURES', hosted ? 'database:event_triggers' : '')
+    const { IS_EVENT_TRIGGERS_ENABLED, assertEventTriggersEnabled } =
+      await import('@/lib/database-capabilities')
+    expect(IS_EVENT_TRIGGERS_ENABLED).toBe(true)
+    expect(assertEventTriggersEnabled).not.toThrow()
+  })
+
+  it('skips introspection SQL and rejects mutations when disabled', async () => {
+    vi.stubEnv('NEXT_PUBLIC_DISABLED_FEATURES', 'database:event_triggers')
+    const { getDatabaseEventTriggers } =
+      await import('@/data/database-event-triggers/database-event-triggers-query')
+    const { createDatabaseEventTrigger } =
+      await import('@/data/database-event-triggers/database-event-trigger-create-mutation')
+    const { deleteDatabaseEventTrigger } =
+      await import('@/data/database-event-triggers/database-event-trigger-delete-mutation')
+    const { IS_REPLICATION_ENABLED, IS_DATABASE_WEBHOOKS_ENABLED } =
+      await import('@/lib/database-capabilities')
+
+    // Strict MSW handlers would reject any SQL request made by these calls.
+    expect(await getDatabaseEventTriggers({ projectRef: 'default' })).toEqual([])
+    await expect(
+      createDatabaseEventTrigger({ projectRef: 'default', sql: safeSql`CREATE EVENT TRIGGER test` })
+    ).rejects.toThrow('Event triggers are disabled')
+    await expect(
+      deleteDatabaseEventTrigger({
+        projectRef: 'default',
+        trigger: {
+          oid: 1,
+          name: 'test',
+          event: 'ddl_command_end',
+          enabled_mode: 'ORIGIN',
+          tags: null,
+          function_name: null,
+          function_schema: null,
+          owner: null,
+          function_definition: null,
+        },
+      })
+    ).rejects.toThrow('Event triggers are disabled')
+    expect(IS_REPLICATION_ENABLED).toBe(true)
+    expect(IS_DATABASE_WEBHOOKS_ENABLED).toBe(true)
   })
 })

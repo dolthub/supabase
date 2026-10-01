@@ -8,6 +8,7 @@ COPY --from=bootstrap /docker-entrypoint-initdb.d/ /opt/supabase/bootstrap/
 COPY predefined-roles.sql /opt/supabase/predefined-roles.sql
 COPY rewrite-default-privileges.sed /opt/supabase/rewrite-default-privileges.sed
 COPY rewrite-role-settings.sed /opt/supabase/rewrite-role-settings.sed
+COPY remove-event-triggers.sed /opt/supabase/remove-event-triggers.sed
 RUN sed -i '/^create publication supabase_realtime;$/d' /opt/supabase/bootstrap/init-scripts/00000000000000-initial-schema.sql
 RUN sed -i \
       -e '/^create extension if not exists pgcrypto /d' \
@@ -29,6 +30,18 @@ RUN find /opt/supabase/bootstrap -type f -name '*.sql' \
       'for sql_file do \
         if grep -zqiE "alter[[:space:]]+(role|user)[[:space:]]+[[:alnum:]_]+[[:space:]]+set[[:space:]]" "$sql_file"; then \
           printf "Unconverted role setting in %s\n" "$sql_file" >&2; exit 1; \
+        fi; \
+      done' sh {} +
+# Post-setup wraps pg_net trigger creation in a DO block. Remove that whole
+# section, preserving the dashboard role and grants that follow it.
+RUN sed -i '/^-- Trigger for pg_cron/,/^-- Supabase dashboard user/{ /^-- Supabase dashboard user/!d; }' \
+      /opt/supabase/bootstrap/init-scripts/00000000000003-post-setup.sql \
+    && find /opt/supabase/bootstrap -type f -name '*.sql' \
+      -exec sed -E -i -f /opt/supabase/remove-event-triggers.sed {} + \
+    && find /opt/supabase/bootstrap -type f -name '*.sql' -exec sh -c \
+      'for sql_file do \
+        if grep -zqiE "(returns[[:space:]]+event_trigger|(create|drop|alter)[[:space:]]+event[[:space:]]+trigger|pg_event_trigger|extensions[.](grant_pg_cron_access|grant_pg_net_access|grant_pg_graphql_access|set_graphql_placeholder|pgrst_ddl_watch|pgrst_drop_watch))" "$sql_file"; then \
+          printf "Unconverted event trigger in %s\n" "$sql_file" >&2; exit 1; \
         fi; \
       done' sh {} +
 COPY --chmod=755 bootstrap.sh /docker-entrypoint-initdb.d/00-supabase.sh

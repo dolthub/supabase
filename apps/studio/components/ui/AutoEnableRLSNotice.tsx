@@ -25,6 +25,7 @@ import { useDatabaseEventTriggersQuery } from '@/data/database-event-triggers/da
 import { useAsyncCheckPermissions } from '@/hooks/misc/useCheckPermissions'
 import { useLocalStorageQuery } from '@/hooks/misc/useLocalStorage'
 import { useSelectedProjectQuery } from '@/hooks/misc/useSelectedProject'
+import { IS_EVENT_TRIGGERS_ENABLED } from '@/lib/database-capabilities'
 import { useTrack } from '@/lib/telemetry/track'
 
 export const AutoEnableRLSNotice = ({ iconOnly }: { iconOnly?: boolean }) => {
@@ -52,7 +53,8 @@ export const AutoEnableRLSNotice = ({ iconOnly }: { iconOnly?: boolean }) => {
     [eventTriggers]
   )
 
-  if (!projectRef || isLoadingEventTriggers || hasDefaultTrigger) return null
+  if (!IS_EVENT_TRIGGERS_ENABLED || !projectRef || isLoadingEventTriggers || hasDefaultTrigger)
+    return null
 
   if (iconOnly) {
     return <CreateEnsureRLSTriggerDialog iconOnly />

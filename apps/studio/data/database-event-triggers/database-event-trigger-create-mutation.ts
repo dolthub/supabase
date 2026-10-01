@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { databaseEventTriggerKeys } from './keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertEventTriggersEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type DatabaseEventTriggerCreateVariables = {
@@ -17,6 +18,7 @@ export async function createDatabaseEventTrigger({
   connectionString,
   sql,
 }: DatabaseEventTriggerCreateVariables) {
+  assertEventTriggersEnabled()
   const { result } = await executeSql({
     projectRef,
     connectionString,

@@ -2,7 +2,7 @@
 
 This override runs the existing Supabase services against Doltgres with debug
 logging, with Realtime, logical replication, SQL cryptography, query statistics,
-and database webhooks disabled. Bootstrap stops at the first remaining SQL error;
+database webhooks, and event triggers disabled. Bootstrap stops at the first remaining SQL error;
 the complete stack has not yet been validated against Doltgres.
 
 The adapter image copies SQL from `supabase/postgres:17.6.1.136` and runs it against
@@ -29,7 +29,7 @@ Studio is available through the gateway at `http://localhost:8000`, using
 `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` from `.env`.
 
 The override builds Studio with
-`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto`. This disables
+`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto,database:event_triggers`. This disables
 publication queries and mutations, per-table Realtime controls, and Realtime and
 replication pages. The adapter removes the initial `CREATE PUBLICATION` statement
 from the copied SQL and does not initialize `_realtime`. The Realtime service is
@@ -40,7 +40,7 @@ Postgres Changes, database Broadcast, client Broadcast, and Presence are
 unavailable. Other Doltgres compatibility errors still stop bootstrap.
 
 For Studio development outside Docker, set
-`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto` before starting
+`NEXT_PUBLIC_DISABLED_FEATURES=realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto,database:event_triggers` before starting
 the dev server. The default PostgreSQL stack keeps replication enabled.
 
 The base stack's fixed container names mean another self-hosted Compose stack
@@ -164,10 +164,8 @@ Connection checks verify the configured values, not PostgreSQL-equivalent timeou
 or read-only enforcement by Doltgres.
 
 The role-setting trial passed the initial schema, Auth schema, Storage schema,
-and post-setup search-path statements. Bootstrap then stopped in
-`00000000000003-post-setup.sql` while defining `extensions.grant_pg_cron_access()`:
-`ERROR: type "event_trigger" does not exist`. The bootstrap runner still stops at
-this error.
+and post-setup search-path statements, then stopped while defining an event-trigger
+function. The event-trigger workaround below removes that blocker.
 
 To inspect that isolated trial:
 
@@ -178,6 +176,59 @@ docker logs supabase-role-settings-trial
 The trial uses the separate volume `supabase_doltgres-role-settings-trial1`.
 Previous trial volumes are preserved. A retry after changing bootstrap SQL needs
 a fresh volume because partially initialized databases are not resumed.
+
+## Event trigger workaround and REST schema refresh
+
+The adapter removes the pinned bootstrap's event-trigger functions and their
+trigger definitions, comments, and ownership statements. It preserves unrelated
+SQL in the same files, including dashboard roles and grants, the GraphQL schema
+and placeholder RPC, and conditional extension permission corrections. The image
+build fails if event-trigger setup or references to the removed functions remain.
+The standard Postgres bootstrap is unchanged.
+
+Studio hides the Event trigger tab and automatic RLS setup notice, blocks the
+direct Event page, and rejects event-trigger create/delete mutations. Its event
+trigger query returns an empty list without querying the database. SQL Editor
+warnings about creating tables without RLS remain active, and Table Editor still
+explicitly enables RLS when selected. SQL migrations and external clients must
+enable RLS explicitly. Ordinary table triggers and existing RLS policies are
+independent of event triggers; their Doltgres compatibility is not established by
+this workaround.
+
+Automatic permission and wrapper setup when installing or removing `pg_cron`,
+`pg_net`, or `pg_graphql` is unavailable. Supporting these extensions later will
+require explicit setup SQL or restoring the event triggers.
+
+PostgREST normally refreshes its schema cache through event-trigger notifications.
+Doltgres 1.3.3 also rejects `LISTEN` and `NOTIFY`, so the override sets
+`PGRST_DB_CHANNEL_ENABLED=false`. After committing schema changes such as creating
+tables, modifying columns or foreign keys, or changing RPC signatures, reload the
+REST schema cache with:
+
+```sh
+docker kill --signal SIGUSR1 supabase-rest
+```
+
+This sends a reload signal; it does not terminate PostgREST. Alternatively, restart
+the `rest` service. Studio's metadata refresh does not refresh PostgREST's cache.
+The full REST service has not yet been validated against Doltgres because database
+bootstrap still fails; the reload command follows PostgREST's documented behavior.
+
+From the repository root, run the removal checks with:
+
+```sh
+python3 docker/volumes/doltgres/test_event_triggers.py
+```
+
+The fresh event-trigger-free trial passed post-setup and stopped in the mounted
+`99-jwt.sql` at `ALTER DATABASE postgres SET "app.settings.jwt_exp"`, with
+`ERROR: ALTER DATABASE is not yet supported`. Its container is
+`supabase-eventless-trial`, and its separate volume is
+`supabase_doltgres-eventless-trial1`:
+
+```sh
+docker logs supabase-eventless-trial
+```
 
 ## Previous startup result (1.0.0)
 

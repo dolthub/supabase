@@ -10,7 +10,12 @@ services:
       dockerfile: apps/studio/Dockerfile
       target: production
       args:
-        NEXT_PUBLIC_DISABLED_FEATURES: realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto
+        NEXT_PUBLIC_DISABLED_FEATURES: realtime:all,database:replication,database:query_statistics,database:webhooks,database:sql_crypto,database:event_triggers
+
+  rest:
+    environment:
+      # Doltgres 1.3.3 lacks LISTEN/NOTIFY. Reload the schema cache with SIGUSR1.
+      PGRST_DB_CHANNEL_ENABLED: 'false'
 
   realtime:
     profiles: [realtime-disabled]

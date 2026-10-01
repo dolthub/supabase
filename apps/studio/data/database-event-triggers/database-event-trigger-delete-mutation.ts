@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { DatabaseEventTrigger } from './database-event-triggers-query'
 import { databaseEventTriggerKeys } from './keys'
 import { executeSql } from '@/data/sql/execute-sql-mutation'
+import { assertEventTriggersEnabled } from '@/lib/database-capabilities'
 import type { ResponseError, UseCustomMutationOptions } from '@/types'
 
 export type DatabaseEventTriggerDeleteVariables = {
@@ -18,6 +19,7 @@ export async function deleteDatabaseEventTrigger({
   projectRef,
   connectionString,
 }: DatabaseEventTriggerDeleteVariables) {
+  assertEventTriggersEnabled()
   const sql = safeSql`DROP EVENT TRIGGER IF EXISTS ${ident(trigger.name)};`
 
   const { result } = await executeSql({
