@@ -2,14 +2,20 @@
 
 This override runs the existing Supabase services against Doltgres with debug
 logging, with Realtime, logical replication, SQL cryptography, query statistics,
-database webhooks, and event triggers disabled. Bootstrap stops at the first remaining SQL error;
-the complete stack has not yet been validated against Doltgres.
+database webhooks, and event triggers disabled. Database bootstrap and its health
+check pass with the local `main` image; the complete service stack has not yet
+been validated against Doltgres. Bootstrap stops at the first SQL error.
 
 The adapter image copies SQL from `supabase/postgres:17.6.1.136` and runs it against
-`dolthub/doltgresql:1.3.3`. It keeps the existing service roles, `db:5432`, and the
-`postgres` and `_supabase` database names. No PostgreSQL server runs in the adapter.
+the local `dolthub/doltgresql:main` image. It keeps the existing service roles,
+`db:5432`, and the `postgres` and `_supabase` database names. No PostgreSQL server
+runs in the adapter.
 
 ## Build and start
+
+Build or load `dolthub/doltgresql:main` into local Docker before building the
+adapter. The workarounds below were established against release 1.3.3 and remain
+in place while testing the local image's panic fix.
 
 From `docker/`, create `.env` if it does not already exist:
 
@@ -211,8 +217,8 @@ docker kill --signal SIGUSR1 supabase-rest
 
 This sends a reload signal; it does not terminate PostgREST. Alternatively, restart
 the `rest` service. Studio's metadata refresh does not refresh PostgREST's cache.
-The full REST service has not yet been validated against Doltgres because database
-bootstrap still fails; the reload command follows PostgREST's documented behavior.
+The full REST service has not yet been validated against Doltgres; the reload
+command follows PostgREST's documented behavior.
 
 From the repository root, run the removal checks with:
 
@@ -286,11 +292,31 @@ migrations and the standard Postgres bootstrap are unchanged.
 The rebuilt image passed both blocks on a fresh volume, then stopped in
 `20250205144616_move_orioledb_to_extensions_schema.sql:23` with
 `ERROR: receiveMessage recovered panic: interface conversion: interface {} is nil, not bool`.
-The complete stack still cannot start. This trial uses the separate volume
+That release-image trial could not complete initialization. It uses the separate volume
 `supabase_doltgres-do-comment-trial1`; inspect its preserved container with:
 
 ```sh
 docker logs supabase-do-comment-trial
+```
+
+## Local main image result
+
+The adapter now uses the local `dolthub/doltgresql:main` image to test the NULL
+condition panic fix ([#3489](https://github.com/dolthub/doltgresql/issues/3489)).
+The tested base image ID is
+`sha256:5b559cf656ed0476f635d311f590461fbf6bba436b3f7f6415bbe9c39c5ab46d`;
+its binary still reports version 1.3.3, so the version string alone does not
+identify the fix.
+
+On a fresh volume, all init scripts and migrations completed, including the
+previously failing orioledb migration. Both bootstrap markers exist, an
+authenticated `SELECT 1` succeeds, and Docker reports the database as healthy.
+Other services were not started in this isolated trial.
+
+The trial uses `supabase_doltgres-main-panic-fix-trial1`. Inspect it with:
+
+```sh
+docker logs supabase-main-panic-fix-trial
 ```
 
 ## Previous startup result (1.0.0)
@@ -303,7 +329,7 @@ create publication supabase_realtime;
 ```
 
 Doltgres reported `syntax error: unimplemented: this syntax`. The database stayed
-unhealthy. The adapter now uses 1.3.3 and removes this statement during the image
-build. The released image also lacks predefined roles required by the copied SQL;
+unhealthy. The adapter now uses the local `main` image and removes this statement
+during the image build. The released image also lacks predefined roles required by the copied SQL;
 the adapter creates compatibility roles before those grants run. The bootstrap
 runner still stops at any remaining SQL error.

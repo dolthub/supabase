@@ -2,7 +2,7 @@
 # Only SQL is copied; PostgreSQL binaries and extension libraries stay behind.
 FROM supabase/postgres:17.6.1.136 AS bootstrap
 
-FROM dolthub/doltgresql:1.3.3
+FROM dolthub/doltgresql:main
 
 COPY --from=bootstrap /docker-entrypoint-initdb.d/ /opt/supabase/bootstrap/
 COPY predefined-roles.sql /opt/supabase/predefined-roles.sql
